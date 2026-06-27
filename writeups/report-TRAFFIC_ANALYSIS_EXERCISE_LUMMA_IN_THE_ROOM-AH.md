@@ -36,61 +36,60 @@ Your task: As part of this exercise, answer the following questions for your inc
 
 Solution:
 
-    Finding the IP address of the infected client
-    I applied the same approach as in the previous exercise to filter out noise traffic (SSDP, broadcast requests) and focus on client requests to the C2. I used the filter:
+Finding the IP address of the infected client
+I applied the same approach as in the previous exercise to filter out noise traffic (SSDP, broadcast requests) and focus on client requests to the C2. I used the filter:
 
-    			(http.request or tls.handshake.type eq 1) and !(ssdp)
+    				(http.request or tls.handshake.type eq 1) and !(ssdp)
 
-    This filter showed all HTTP requests and TLS handshakes, excluding SSDP. In the results, I noticed that all suspicious connections to 153.92.1.49:80 originated from a single internal address:
+This filter showed all HTTP requests and TLS handshakes, excluding SSDP. In the results, I noticed that all suspicious connections to 153.92.1.49:80 originated from a single internal address:
 
-    				Infected client IP address: 10.1.21.58
+    					Infected client IP address: 10.1.21.58
 
-    Determining the MAC address
-    Knowing the IP address (10.1.21.58), I clicked on any packet with that address and expanded the Ethernet (link‑layer) details. In the Ethernet header, I found the sender MAC address:
+Determining the MAC address
+Knowing the IP address (10.1.21.58), I clicked on any packet with that address and expanded the Ethernet (link‑layer) details. In the Ethernet header, I found the sender MAC address:
 
     				Infected client MAC address: 00:21:5d:c8:0e:f2
 
-    Obtaining the hostname
-    Instead of NBNS (as last time), I decided to look for the hostname in DHCP traffic, because when obtaining an IP address, the client sends its name in the request. I applied the filter:
+Obtaining the hostname
+Instead of NBNS (as last time), I decided to look for the hostname in DHCP traffic, because when obtaining an IP address, the client sends its name in the request. I applied the filter:
 
-    						dhcp
+    							dhcp
 
-    In one of the DHCP packets, I expanded the structure and found the Host Name Option field, which contained the computer name:
+In one of the DHCP packets, I expanded the structure and found the Host Name Option field, which contained the computer name:
 
-    				Infected client hostname: DESKTOP-ES9F3ML
+    					Infected client hostname: DESKTOP-ES9F3ML
 
-    Determining the user account name
-    To find the username, I used the same method as before – filtering Kerberos traffic. I applied the filter:
+Determining the user account name
+To find the username, I used the same method as before – filtering Kerberos traffic. I applied the filter:
 
     					kerberos && ip.addr eq 10.1.21.58
 
-    In one of the Kerberos tickets (TGT), I found the CNameString field, which contained the username:
+In one of the Kerberos tickets (TGT), I found the CNameString field, which contained the username:
 
     						Account name: gwyatt
 
-    Establishing the full user name
-    To find the full user name, I used Wireshark's search function (Edit → Find Packet). In the search bar, I entered the assumed surname "Wyatt" (obtained in the previous step), selected case‑sensitive string search and enabled the "Multiple occurrences" option. Wireshark found several occurrences in the context of SMB, LDAP, or Kerberos protocols. In one of them, the full user name was specified:
+Establishing the full user name
+To find the full user name, I used Wireshark's search function (Edit → Find Packet). In the search bar, I entered the assumed surname "Wyatt" (obtained in the previous step), selected case‑sensitive string search and enabled the "Multiple occurrences" option. Wireshark found several occurrences in the context of SMB, LDAP, or Kerberos protocols. In one of them, the full user name was specified:
 
-    Full user name: Gabriel Wyatt
+    						Full user name: Gabriel Wyatt
 
-    Identifying the malicious C2 server domain
-    To identify the domain associated with 153.92.1.49, I decided to look at the TLS handshake (if present) or DNS queries. I applied a filter to search for TLS handshakes with this IP:
+Identifying the malicious C2 server domain
+To identify the domain associated with 153.92.1.49, I decided to look at the TLS handshake (if present) or DNS queries. I applied a filter to search for TLS handshakes with this IP:
 
-    tls.handshake.type eq 1 && ip.addr eq 153.92.1.49
+    					tls.handshake.type eq 1 && ip.addr eq 153.92.1.49
 
-    In the decrypted (or partially decrypted) TLS handshake, in the Server Name Indication (SNI) field, I found the domain name:
+In the decrypted (or partially decrypted) TLS handshake, in the Server Name Indication (SNI) field, I found the domain name:
 
-    C2 server domain: whitepeper.su
+    						C2 server domain: whitepeper.su
 
 Investigation Results:
-Item	Value
-Infected client IP address	10.1.21.58
-MAC address			00:21:5d:c8:0e:f2
-Hostname			DESKTOP-ES9F3ML
-Account name			gwyatt
-Full user name			Gabriel Wyatt
-C2 server domain		whitepeper.su
+Infected client IP address | 10.1.21.58
+MAC address | 00:21:5d:c8:0e:f2
+Hostname | DESKTOP-ES9F3ML
+Account name | gwyatt
+Full user name | Gabriel Wyatt
+C2 server domain | whitepeper.su
 
-    Conclusion
+Conclusion
 
 This exercise helped me master various methods of extracting information from pcap files: using DHCP to obtain hostnames, Kerberos for user identification, and TLS SNI to determine the C2 domain. I reinforced my skills in using Wireshark filters and searching through packets, which is an important part of a SOC analyst's work.
